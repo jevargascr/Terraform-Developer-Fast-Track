@@ -1,0 +1,640 @@
+title: "Developer-Fast-Track"
+description: "Cree un entorno nativo en la nube a través de terraform y Resource Manager"
+schemaVersion: 1.1.0
+version: "20190304"
+locale: "pt-br"
+
+
+#################
+# Variaveis
+#################
+variableGroups:
+- title: Configuración General
+  visible: false
+  variables:
+  - tenancy_ocid
+  - region
+  - node_pool_boot_volume_size_in_gbs
+  - oke_compartment_description
+  - user_ocid
+  - fingerprint
+  - private_key_path
+  - network_cidrs
+  - cluster_options_admission_controller_options_is_pod_security_policy_enabled
+  - deploy_pipeline_deploy_pipeline_parameters_items_default_value
+  - deploy_pipeline_deploy_pipeline_parameters_items_description
+  - deploy_pipeline_deploy_pipeline_parameters_items_name
+  - release
+
+- title: Proyecto DevOps
+  visible: true  
+  variables:
+    - compartment_id
+    - app_name
+    - show_advanced
+    - log_group_display_name
+    - notification_topic_name
+    - project_description
+    - project_logging_config_display_name_prefix
+    - project_logging_config_is_archiving_enabled
+    - project_logging_config_retention_period_in_days
+
+- title: Ambiente DevOps
+  visible: 
+      and:
+        - show_advanced
+  variables:
+    - environment_type 
+    - environment_description 
+    - environment_display_name
+
+- title: Configuración de políticas
+  description: Configuración de Políticas para la implementación del stack
+  visible: true  
+  variables:
+    - create_dynamic_group_for_devops_pipln_in_compartment
+    - create_dynamic_group_for_nodes_in_compartment
+    - existent_dynamic_group_for_nodes_in_compartment
+    - create_compartment_policies
+    - create_tenancy_policies
+    
+- title: Configuración de cifrado
+  description: Configuración de Políticas para la implementación del stack
+  visible: true  
+  variables:
+    - use_encryption_from_oci_vault
+    - create_new_encryption_key
+    - existent_encryption_key_id
+    - create_vault_policies_for_group
+    - user_admin_group_for_vault_policy
+
+    
+
+- title: "Configuración del Cluster de OKE"
+  variables:
+    - create_new_oke_cluster
+    - existent_oke_cluster_compartment_ocid
+    - existent_oke_cluster_id
+    - k8s_version
+    - cluster_workers_visibility
+    - cluster_endpoint_visibility
+    - create_new_compartment_for_oke
+    - cluster_options_add_ons_is_kubernetes_dashboard_enabled
+
+- title: "OKE Worker Nodes"
+  variables:
+    - cluster_autoscaler_enabled
+    - num_pool_workers
+    - cluster_autoscaler_min_nodes
+    - cluster_autoscaler_max_nodes
+    - existent_oke_nodepool_id_for_autoscaler
+    - node_pool_shape
+    - node_pool_node_shape_config_ocpus
+    - node_pool_node_shape_config_memory_in_gbs
+    - generate_public_ssh_key
+    - public_ssh_key
+    - image_operating_system
+    - image_operating_system_version
+    - node_pool_name
+
+- title: "API Gateway"
+  visible: true
+  variables:
+    - api_gateway_name
+    - api_gateway_type
+
+- title: "APM"
+  visible: true
+  variables:
+   - apm_diplay_name
+
+- title: "Repository"
+  visible: true
+  variables:
+   - repository_is_immutable
+   - repository_repository_type
+   - artifact_repository_display_name
+   - container_repository_display_name 
+
+- title: "Stream"
+  visible: true
+  variables:
+   - stream_pool_name
+   - stream_name
+   - stream_partitions
+
+- title: "Object Storage"
+  visible: true
+  variables:
+   - bucket_name
+
+- title: "Functions"
+  visible: true
+  variables:
+   - application_display_name
+
+#################
+# Output Groups
+#################
+outputGroups:
+- title: Service Endpoints
+  outputs:
+    - theia_public_ip
+- title: Generated Passwords
+  outputs:
+    - generated_ssh_private_key
+
+outputs:
+  theia_public_ip:
+    type: link
+    title: Your Theia website
+    description: Open Theia website
+  generated_ssh_private_key:
+    title: "Generated SSH Private Key"
+    description: "Generated SSH Private Key"
+    type: copyableString
+    visible: true
+
+primaryOutputButton: theia_public_ip
+
+
+######################
+# Variable Definitions
+######################
+
+variables:
+
+  compartment_id: 
+    type: oci:identity:compartment:id
+    title: "Compartment"
+    description: "The compartment in which to create resources"
+    required: true
+
+  app_name:
+    type: string
+    title: "Project Name"
+    required: true
+  
+  show_advanced:
+    type: boolean
+    title: "¿Mostrar opciones avanzadas?"
+    description: "Muestra opciones avanzadas que le permiten habilitar claves de cifrado administradas por el cliente, seleccionar su clave ssh, seleccionar/deseleccionar utilidades de clúster, no crear políticas y otras opciones avanzadas"
+    visible: true
+    default: false
+
+## DevOps
+
+  log_group_display_name:
+    type: string
+    title: "Nombre del grupo de logs"
+    description: "Nombre para mostrar del grupo de logs"
+    default: "devops-logs"
+    required: true
+    visible: 
+      and:
+        - show_advanced
+
+  notification_topic_name:
+    type: string
+    title: "Nombre del tema de notificación"
+    description: "Nombre del tema de notificación utilizado para los mensajes sobre el proyecto"
+    default: "devops-topic"
+    required: true
+    visible: 
+      and:
+        - show_advanced
+
+
+  project_description:
+    type: string
+    title: "Descripción del proyecto DevOps"
+    description: "Una breve descripción del proyecto DevOps"
+    default: "Proyecto DevOps para implementación de OKE"
+    required: true
+    visible: 
+      and:
+        - show_advanced
+
+
+  project_logging_config_display_name_prefix:
+    type: string
+    title: "Prefixo para configuración de Logging"
+    description: "Nome  para el grupo de logs"
+    default: "FT-"
+    required: true
+    visible: 
+      and:
+        - show_advanced
+
+  project_logging_config_is_archiving_enabled:
+    type: boolean
+    title: "Archivado habilitado para el registro de proyectos"
+    description: "Nombre para mostrar del grupo de logs"
+    default: false
+    required: true
+    visible: 
+      and:
+        - show_advanced
+
+  project_logging_config_retention_period_in_days:
+    type: string
+    title: "Período de retención de logs del proyecto"
+    description: "Días para conservar los logs del proyecto."
+    default: 30
+    required: true
+    visible: 
+      and:
+        - show_advanced
+  
+  #############
+  # Environment
+  ############# 
+
+  environment_type:
+    type: enum
+    enum:
+      - "OKE_CLUSTER"
+    title: "Tipo de ambiente"
+    description: "El tipo de entorno de destino. La pila actualmente solo admite OKE_CLUSTER"
+    default: "OKE_CLUSTER"
+    visible: 
+      and:
+        - show_advanced
+  environment_description:
+    type: string
+    title: "Descripción del entorno"
+    description: "Describir el entorno DevOps"
+    default: "Entorno OKE que puede ser direccionado por DevOps"
+    visible: 
+      and:
+        - show_advanced
+  environment_display_name:
+    type: string
+    title: "Nombre del entorno"
+    description: "Nombre del entorno DevOps"
+    default: "DevOps OKE Environment"
+  
+  ###########
+  # Pipeline
+  ###########
+  create_dynamic_group_for_devops_pipln_in_compartment:
+    type: boolean
+    title: "Crear un Dynamic Group para pipelines de DevOps"
+    description: | 
+      Necesitas ser un administrador para hacer esto
+
+      Alternativamente, puede hacer que el administrador cree un grupo dinámico para usted.
+    default: true
+    
+  ####################  
+  ## OKE 
+  ####################
+
+  create_new_oke_cluster:
+    type: boolean
+    title: "Create new OKE Cluster"
+
+  existent_oke_cluster_compartment_ocid:
+    type: oci:identity:compartment:id
+    title: "Existent OKE Cluster Compartment"
+    description: "The compartment where you find the existent OKE Cluster"
+    default: compartment_ocid
+    required: true
+    visible:
+      not:
+        - create_new_oke_cluster
+
+  existent_oke_cluster_id:
+    type: oci:container:cluster:id
+    title: "Existent OKE Cluster"
+    required: true
+    dependsOn:
+      compartmentId: existent_oke_cluster_compartment_ocid
+    visible:
+      not:
+        - create_new_oke_cluster
+
+  k8s_version:
+    type: enum
+    enum: # Necessary hardcoded supported versions, as ORM does not retrieve the versions from OKE.
+    - "Latest"
+    - "v1.23.4"
+    title: "Kubernetes Version"
+    required: true
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+
+  cluster_workers_visibility:
+    type: enum
+    enum:
+    - "Private"
+    - "Public"
+    title: "Choose Worker Nodes visibility type"
+    required: true
+    visible:
+      and:
+        - create_new_oke_cluster
+
+  cluster_endpoint_visibility:
+    type: enum
+    enum:
+    # - "Private"
+    - "Public"
+    title: "Choose Kubernetes API Endpoint visibility type"
+    required: true
+    visible:
+      and:
+        - create_new_oke_cluster
+
+  create_new_compartment_for_oke:
+    type: boolean
+    title: "Create new Compartment"
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+
+  num_pool_workers:
+    type: integer
+    title: "Number of Worker Nodes"
+    minimum: 1
+    maximum: 1000
+    required: true
+    visible:
+      and:
+        - create_new_oke_cluster
+
+  node_pool_shape:
+    type: oci:core:instanceshape:name
+    title: "Select a shape for the Worker Nodes instances"
+    required: true
+    dependsOn:
+      compartmentId: compartment_ocid
+    visible:
+      and:
+        - create_new_oke_cluster
+
+  node_pool_node_shape_config_ocpus:
+    type: integer
+    minimum: 1
+    maximum: 64
+    title: "Number of OCPUs"
+    visible:
+      and:
+        - and:
+          - create_new_oke_cluster
+        - or:
+          - eq:
+            - node_pool_shape 
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - node_pool_shape 
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - node_pool_shape 
+            - "VM.Standard.A1.Flex"
+
+  node_pool_node_shape_config_memory_in_gbs:
+    type: integer
+    minimum: 1
+    maximum: 1024
+    title: "Amount of memory (GB)"
+    visible:
+      and:
+        - and:
+          - create_new_oke_cluster
+        - or:
+          - eq:
+            - node_pool_shape 
+            - "VM.Standard.E3.Flex"
+          - eq:
+            - node_pool_shape 
+            - "VM.Standard.E4.Flex"
+          - eq:
+            - node_pool_shape 
+            - "VM.Standard.A1.Flex"
+
+  node_pool_name:
+    type: string
+    title: "Node Pool Name"
+    required: true
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+
+  cluster_options_add_ons_is_kubernetes_dashboard_enabled:
+    type: boolean
+    title: "Kubernetes Dashboard Enabled"
+    visible: false
+
+  generate_public_ssh_key:
+    type: boolean
+    title: "Auto generate public ssh key?"
+    required: true
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+
+  public_ssh_key:
+    type: oci:core:ssh:publickey
+    title: "Import your own SSH public key"
+    additionalProps:
+      allowMultiple: true
+    required: false
+    pattern: "((^(ssh-rsa AAAAB3NzaC1yc2|ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNT|ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzOD|ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1Mj|ssh-ed25519 AAAAC3NzaC1lZDI1NTE5|ssh-dss AAAAB3NzaC1kc3)[0-9A-Za-z+\/]+[=]{0,3})( [^,]*)?)(,((ssh-rsa AAAAB3NzaC1yc2|ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNT|ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzOD|ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1Mj|ssh-ed25519 AAAAC3NzaC1lZDI1NTE5|ssh-dss AAAAB3NzaC1kc3)[0-9A-Za-z+\/]+[=]{0,3})( [^,]*)?)*$"
+    visible:
+      and:
+        - and:
+          - create_new_oke_cluster
+          - show_advanced
+        - not:
+          - generate_public_ssh_key
+
+  image_operating_system:
+    type: enum
+    title: "Image OS"
+    enum:
+      - "Oracle Linux"
+    required: true
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+
+  image_operating_system_version:
+    type: string
+    required: true
+    title: "Image OS Version"
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+  
+  create_dynamic_group_for_nodes_in_compartment:
+    type: boolean
+    title: "Create Dynamic Group for Worker Nodes in the Compartment"
+    required: true
+    visible:
+      and:
+        - show_advanced
+
+  existent_dynamic_group_for_nodes_in_compartment:
+    type: string
+    required: true
+    title: "Existent Dynamic Group"
+    visible:
+      and:
+        - and:
+          - show_advanced
+        - or:
+          - create_compartment_policies
+          - create_tenancy_policies
+        - not:
+          - create_dynamic_group_for_nodes_in_compartment
+        
+  create_compartment_policies:
+    type: boolean
+    title: "Create Compartment Policies"
+    required: true
+    visible:
+      and:
+        - show_advanced
+
+  create_tenancy_policies:
+    type: boolean
+    title: "Create Tenancy Policies"
+    required: true
+    visible:
+      and:
+        - show_advanced
+  
+  
+  # Encryption options
+  use_encryption_from_oci_vault:
+    type: boolean
+    title: "Encrypt using Customer-Managed Keys instead of Oracle Managed Encryption"
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+
+  create_new_encryption_key:
+    type: boolean
+    title: "Create new Vault and Key"
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+        - use_encryption_from_oci_vault
+
+  existent_encryption_key_id:
+    type: string
+    title: "Existent Encryption Key OCID"
+    required: true
+    visible:
+      and:
+        - and:
+          - create_new_oke_cluster
+          - show_advanced
+          - use_encryption_from_oci_vault
+        - not:
+          - create_new_encryption_key
+
+  create_vault_policies_for_group:
+    type: boolean
+    title: "Create policies for the user group to manage vault and keys"
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+        - use_encryption_from_oci_vault
+        - create_new_encryption_key
+
+  user_admin_group_for_vault_policy:
+    type: string
+    title: "Specify your group to include the policy"
+    visible:
+      and:
+        - create_new_oke_cluster
+        - show_advanced
+        - use_encryption_from_oci_vault
+        - create_new_encryption_key
+        - create_vault_policies_for_group
+
+  ####################  
+  ## OKE 
+  ####################
+  
+  api_gateway_name:
+    type: string
+    title: "Nombre del API Gateway"
+    #description: "Nombre de API Gateway a ser criado"
+    #default: "API Gateway FT"
+    required: true
+
+  api_gateway_type:
+    type: string
+    title: "API Gateway Type"
+    #default: "PUBLIC"
+    visible: false
+
+  apm_diplay_name:
+    type: string
+    title: "Nombre del APM"
+    #description: "Nombre de APM a ser criado"
+    #default: "APM FT"
+    required: true
+
+# Repository
+
+  repository_is_immutable:
+      type: boolean
+      title: El repositorio es inmutable?
+      required: true
+
+  repository_repository_type:
+      type: string
+      title: Tipo de repositorio
+      required: true
+
+    
+  artifact_repository_display_name:
+      type: string
+      title: Nombre del Respositório de Artefatos
+      required: true
+
+  container_repository_display_name:
+    type: string
+    title: Nombre de la Imagem de container 
+    required: true
+
+  # Stream 
+
+  stream_pool_name:
+      type: string
+      title: "Nombre del Stream Pool"
+      required: true
+
+  stream_name:
+      type: string
+      title: "Nombre del Stream"
+      required: true
+
+  stream_partitions:
+      type: number 
+      title: Stream Partitions
+      required: true
+
+  bucket_name:
+      type: string
+      title: "Nombre del Object Storage"
+      required: true
+
+  application_display_name:
+      type: string
+      title: "Nombre del Aplicação no Functions"
+      required: true
