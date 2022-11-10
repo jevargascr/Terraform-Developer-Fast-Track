@@ -219,7 +219,7 @@ variables:
   project_logging_config_display_name_prefix:
     type: string
     title: "Prefixo para configuración de Logging"
-    description: "Nome  para el grupo de logs"
+    description: "Nombre para el grupo de logs"
     default: "FT-"
     required: true
     visible: 
